@@ -2,7 +2,7 @@
   "name": "ironman-tracker",
   "version": "1.0.0",
   "description": "Entrenamientos Ironman",
-  "homepage": "https://amadoracacio.github.io/ironman-tracker",
+  "homepage": "https://amadoracacioperez.github.io/ironman-tracker",
   "scripts": {
     "predeploy": "git add . && git commit -m 'deploy' || echo 'Sin cambios'",
     "deploy": "gh-pages -d ."
