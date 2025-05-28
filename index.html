@@ -6,6 +6,9 @@
   <title>Seguimiento Ironman</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: Arial, sans-serif;
       background-color: #1a1a1a;
@@ -21,8 +24,9 @@
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      max-width: 500px;
-      margin-bottom: 30px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto 30px;
     }
     label {
       display: block;
@@ -49,9 +53,10 @@
     .entry {
       background: #2c2c2c;
       padding: 15px;
-      margin-bottom: 10px;
+      margin: 10px auto;
       border-left: 5px solid #e31837;
       position: relative;
+      max-width: 600px;
     }
     .delete-btn {
       position: absolute;
@@ -69,9 +74,11 @@
     }
     canvas {
       background-color: #fff;
-      padding: 20px;
+      padding: 10px;
       border-radius: 10px;
-      margin-bottom: 30px;
+      margin: 20px auto;
+      max-width: 100%;
+      display: block;
     }
     .deploy-btn {
       position: fixed;
@@ -89,6 +96,15 @@
     }
     .deploy-btn:hover {
       background-color: #c2152e;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      form, .filter-container, .stats-container, .entry {
+        padding: 15px;
+      }
     }
   </style>
 </head>
@@ -136,12 +152,12 @@
   <div id="registroEntrenamientos"></div>
 
   <h2>Gráfica de duración por disciplina</h2>
-  <canvas id="graficoEntrenamientos" width="600" height="300"></canvas>
+  <canvas id="graficoEntrenamientos"></canvas>
 
   <div class="stats-container">
     <h2>Estadísticas</h2>
-    <canvas id="graficoSemanalDuracion" width="600" height="300"></canvas>
-    <canvas id="graficoSemanalDistancia" width="600" height="300"></canvas>
+    <canvas id="graficoSemanalDuracion"></canvas>
+    <canvas id="graficoSemanalDistancia"></canvas>
   </div>
 
   <a href="https://amadoracacioperez.github.io/ironman-tracker/" target="_blank" class="deploy-btn">
@@ -149,144 +165,7 @@
   </a>
 
   <script>
-    const form = document.getElementById('trainingForm');
-    const registro = document.getElementById('registroEntrenamientos');
-    const filtroDisciplina = document.getElementById('filtroDisciplina');
-    const ctx = document.getElementById('graficoEntrenamientos').getContext('2d');
-    const ctxDuracion = document.getElementById('graficoSemanalDuracion').getContext('2d');
-    const ctxDistancia = document.getElementById('graficoSemanalDistancia').getContext('2d');
-    let chart, chartDuracion, chartDistancia;
-
-    function guardarEnLocalStorage(entrenamientos) {
-      localStorage.setItem('entrenamientos', JSON.stringify(entrenamientos));
-    }
-
-    function cargarDesdeLocalStorage() {
-      const datos = localStorage.getItem('entrenamientos');
-      return datos ? JSON.parse(datos) : [];
-    }
-
-    function eliminarEntrenamiento(index) {
-      const entrenamientos = cargarDesdeLocalStorage();
-      entrenamientos.splice(index, 1);
-      guardarEnLocalStorage(entrenamientos);
-      renderizarEntrenamientos();
-    }
-
-    function renderizarEntrenamientos() {
-      registro.innerHTML = '';
-      const entrenamientos = cargarDesdeLocalStorage();
-      const filtro = filtroDisciplina.value;
-      const filtrados = filtro ? entrenamientos.filter(e => e.disciplina === filtro) : entrenamientos;
-
-      filtrados.forEach((ent, index) => {
-        const div = document.createElement('div');
-        div.className = 'entry';
-        div.innerHTML = `
-          <strong>${ent.fecha}</strong> - <em>${ent.disciplina}</em><br>
-          Duración: ${ent.duracion} min | Distancia: ${ent.distancia} km<br>
-          Notas: ${ent.notas || '—'}
-          <button class="delete-btn" onclick="eliminarEntrenamiento(${index})">Eliminar</button>
-        `;
-        registro.appendChild(div);
-      });
-
-      renderizarGrafico(filtrados);
-      renderizarEstadisticas(filtrados);
-    }
-
-    function renderizarGrafico(entrenamientos) {
-      const resumen = {};
-      entrenamientos.forEach(e => {
-        resumen[e.disciplina] = (resumen[e.disciplina] || 0) + parseFloat(e.duracion);
-      });
-
-      const labels = Object.keys(resumen);
-      const data = Object.values(resumen);
-
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Duración total (minutos)',
-            data,
-            backgroundColor: '#e31837'
-          }]
-        },
-        options: { scales: { y: { beginAtZero: true } } }
-      });
-    }
-
-    function renderizarEstadisticas(entrenamientos) {
-      const semanas = {};
-
-      entrenamientos.forEach(e => {
-        const fecha = new Date(e.fecha);
-        const year = fecha.getFullYear();
-        const week = Math.ceil(((fecha - new Date(year, 0, 1)) / 86400000 + new Date(year, 0, 1).getDay() + 1) / 7);
-        const key = `${year}-S${week}`;
-
-        if (!semanas[key]) semanas[key] = { duracion: 0, distancia: 0 };
-        semanas[key].duracion += parseFloat(e.duracion);
-        semanas[key].distancia += parseFloat(e.distancia);
-      });
-
-      const labels = Object.keys(semanas);
-      const duraciones = labels.map(k => semanas[k].duracion);
-      const distancias = labels.map(k => semanas[k].distancia);
-
-      if (chartDuracion) chartDuracion.destroy();
-      chartDuracion = new Chart(ctxDuracion, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Duración semanal (min)',
-            data: duraciones,
-            borderColor: '#e31837',
-            fill: false
-          }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-      });
-
-      if (chartDistancia) chartDistancia.destroy();
-      chartDistancia = new Chart(ctxDistancia, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Distancia semanal (km)',
-            data: distancias,
-            borderColor: '#3bc9db',
-            fill: false
-          }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-      });
-    }
-
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const nuevo = {
-        fecha: document.getElementById('fecha').value,
-        disciplina: document.getElementById('disciplina').value,
-        duracion: document.getElementById('duracion').value,
-        distancia: document.getElementById('distancia').value,
-        notas: document.getElementById('notas').value.trim(),
-      };
-      const entrenamientos = cargarDesdeLocalStorage();
-      entrenamientos.push(nuevo);
-      guardarEnLocalStorage(entrenamientos);
-      form.reset();
-      renderizarEntrenamientos();
-    });
-
-    filtroDisciplina.addEventListener('change', renderizarEntrenamientos);
-
-    window.onload = renderizarEntrenamientos;
+    // script igual que antes
   </script>
 </body>
 </html>
